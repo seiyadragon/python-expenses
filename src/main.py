@@ -168,6 +168,9 @@ class App(tk.Tk):
         else:
             data = []
 
+            with open(file_path, 'w') as file:
+                json.dump([], file)
+
         data.append({"date": date, "description": description, "amount": amount})
 
         with open(file_path, 'w') as file:
