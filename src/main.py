@@ -56,7 +56,7 @@ class App(tk.Tk):
             if token.isdigit() and len(token) < 4:
                 continue
 
-            if str(token).casefold() == "last.".casefold() or str(token).casefold() == "next".casefold() or str(token).casefold() == "this".casefold():
+            if str(token).casefold() == "last".casefold() or str(token).casefold() == "next".casefold() or str(token).casefold() == "this".casefold():
                 last_token = token
                 continue
 
