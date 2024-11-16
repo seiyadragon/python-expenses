@@ -45,14 +45,19 @@ class App(tk.Tk):
         self.loading_value = 0.0
         self.loading_start = datetime.datetime.now()
 
+        self.loader_spinner = ttk.Progressbar(self, mode="indeterminate")
+
         # Wait for the thread to finish
         while self.loading_thread.is_alive():
             self.loading_value = (datetime.datetime.now() - self.loading_start).total_seconds()
-            self.loading_label.pack(pady=10, padx=10, expand=True)
+            self.loader_spinner.pack(pady=10, padx=100, fill=tk.X, expand=True)
+            self.loading_label.pack(pady=10, padx=10)
             self.loading_label.config(text="Loading NLTK data: {:.2f} seconds".format(self.loading_value))
+            self.loader_spinner.step(0.1)
             self.update()
 
         self.loading_label.destroy()
+        self.loader_spinner.destroy()
         self.total_loading_time = (datetime.datetime.now() - self.loading_start).total_seconds()
 
         print("NLTK data loaded in {:.2f} seconds".format(self.total_loading_time))
@@ -81,7 +86,6 @@ class App(tk.Tk):
         # Add theme options to the "Themes" menu
         for index, theme in enumerate(self.available_themes):
             self.themes_menu.add_radiobutton(label=theme, command=lambda theme=theme: self.change_theme(theme), value=index, var=self.selected_theme_value)
-
 
         self.title_label = ttk.Label(self, text="Total expenses")
         self.title_label.pack(pady=10, padx=10, fill=tk.BOTH, side=tk.TOP)
@@ -297,6 +301,15 @@ class App(tk.Tk):
             if token.isdigit() and len(token) < 4:
                 continue
 
+            if token.isdigit() and (int(token) < 1900 or int(token) > 2100):
+                continue
+
+            if token.isdigit() and (int(token) >= 1900 and int(token) <= 2100):
+                if last_token == "spent" or last_token == "paid" or last_token == "sent" or last_token == "":
+                    continue
+
+            last_token = token
+
             if str(token).casefold() == "last".casefold() or str(token).casefold() == "next".casefold() or str(token).casefold() == "this".casefold():
                 last_token = token
                 continue
@@ -368,7 +381,7 @@ class App(tk.Tk):
             "dollars",
             "dollar",
             "paid",
-            "I ",
+            "I",
             "spent",
             "sent"
         ]
