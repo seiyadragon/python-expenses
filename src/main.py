@@ -126,8 +126,24 @@ class App(tk.Tk):
         self.all_button = ttk.Button(self.middle_frame, text="All", command=self.display_all_expenses)
         self.all_button.pack(pady=10, padx=10, side=tk.LEFT)
 
-        self.remove_button = ttk.Button(self.middle_frame, text="Remove selected", command=self.remove_selected_expenses)
+        self.from_label = ttk.Label(self.middle_frame, text="From:")
+        self.from_label.pack(pady=10, padx=10, side=tk.LEFT)
+        self.from_date_entry = ttk.Entry(self.middle_frame, width=10)
+        self.from_date_entry.pack(pady=10, padx=10, side=tk.LEFT)
+
+        self.to_label = ttk.Label(self.middle_frame, text="To:")
+        self.to_label.pack(pady=10, padx=10, side=tk.LEFT)
+        self.to_date_entry = ttk.Entry(self.middle_frame, width=10)
+        self.to_date_entry.pack(pady=10, padx=10, side=tk.LEFT)
+        
+        self.date_range_button = ttk.Button(self.middle_frame, text="Date range", command=lambda: self.display_date_range_expenses(dateparser.parse(self.from_date_entry.get()), dateparser.parse(self.to_date_entry.get())))
+        self.date_range_button.pack(pady=10, padx=10, side=tk.LEFT)
+
+        self.remove_button = ttk.Button(self.middle_frame, text="Remove", command=self.remove_selected_expenses)
         self.remove_button.pack(pady=10, padx=10, side=tk.RIGHT)
+
+        self.display_deleted_button = ttk.Button(self.middle_frame, text="Deleted", command=self.display_deleted_expenses)
+        self.display_deleted_button.pack(pady=10, padx=10, side=tk.RIGHT)
 
         for expense in self.load_json_data():
             self.add_expense(expense["date"], expense["description"], expense["amount"])
@@ -181,6 +197,7 @@ class App(tk.Tk):
     def display_daily_expenses(self):
         self.clear_data_from_table()
         self.title_label.config(text="Daily expenses")
+        self.displaying_deleted = False
 
         total_expense = 0.0
         for expense in self.load_json_data():
@@ -189,10 +206,27 @@ class App(tk.Tk):
                 total_expense += float(expense["amount"])
 
         self.update_total_expense(total_expense)
+        self.update_delete_button()
+
+    def display_date_range_expenses(self, start_date, end_date):
+        self.clear_data_from_table()
+        self.title_label.config(text="Date range expenses")
+        self.displaying_deleted = False
+
+        total_expense = 0.0
+        for expense in self.load_json_data():
+            date = dateparser.parse(expense["date"])
+            if date >= start_date and date <= end_date:
+                self.add_expense(expense["date"], expense["description"], expense["amount"])
+                total_expense += float(expense["amount"])
+
+        self.update_total_expense(total_expense)
+        self.update_delete_button()
 
     def display_weekly_expenses(self):
         self.clear_data_from_table()
         self.title_label.config(text="Weekly expenses")
+        self.displaying_deleted = False
 
         total_expense = 0.0
         for expense in self.load_json_data():
@@ -202,10 +236,12 @@ class App(tk.Tk):
                 total_expense += float(expense["amount"])
 
         self.update_total_expense(total_expense)
+        self.update_delete_button()
 
     def display_monthly_expenses(self):
         self.clear_data_from_table()
         self.title_label.config(text="Monthly expenses")
+        self.displaying_deleted = False
 
         total_expense = 0.0
         for expense in self.load_json_data():
@@ -215,10 +251,12 @@ class App(tk.Tk):
                 total_expense += float(expense["amount"])
 
         self.update_total_expense(total_expense)
+        self.update_delete_button()
 
     def display_yearly_expenses(self):
         self.clear_data_from_table()
         self.title_label.config(text="Yearly expenses")
+        self.displaying_deleted = False
 
         total_expense = 0.0
         for expense in self.load_json_data():
@@ -228,10 +266,12 @@ class App(tk.Tk):
                 total_expense += float(expense["amount"])
 
         self.update_total_expense(total_expense)
+        self.update_delete_button()
 
     def display_all_expenses(self):
         self.clear_data_from_table()
         self.title_label.config(text="Total expenses")
+        self.displaying_deleted = False
 
         total_expense = 0.0
         for expense in self.load_json_data():
@@ -239,6 +279,29 @@ class App(tk.Tk):
             total_expense += float(expense["amount"])
 
         self.update_total_expense(total_expense)
+        self.update_delete_button()
+
+    def display_deleted_expenses(self):
+        self.clear_data_from_table()
+        self.title_label.config(text="Deleted expenses")
+        self.displaying_deleted = True
+
+        print("Deleted expenses")
+
+        total_expense = 0.0
+        for expense in self.load_deleted_json_data():
+            #if expense["deleted"] == True:
+            self.add_expense(expense["date"], expense["description"], expense["amount"])
+            total_expense += float(expense["amount"])
+
+        self.update_total_expense(total_expense)
+        self.update_delete_button()
+
+    def update_delete_button(self):
+        if self.displaying_deleted:
+            self.remove_button.config(text="Restore selected", command=self.restore_selected_expenses)
+        else:
+            self.remove_button.config(text="Remove selected", command=self.remove_selected_expenses)
 
     def load_nltk_data(self):
         # Download the NLTK data
@@ -272,6 +335,33 @@ class App(tk.Tk):
             self.table.delete(selected_item)
             self.update_total_expense(self.total_expense_value - float(amount))
 
+    def restore_selected_expenses(self):
+        for selected_item in self.table.selection():
+            date = self.table.item(selected_item)["values"][0]
+            description = self.table.item(selected_item)["values"][1]
+            amount = self.table.item(selected_item)["values"][2]
+
+            self.restore_deleted_from_json(date, description, amount)
+            self.table.delete(selected_item)
+            self.update_total_expense(self.total_expense_value - float(amount))
+
+    def restore_deleted_from_json(self, date, description, amount):
+        file_path = "expenses.json"
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+        else:
+            print("No data to restore")
+            return
+        
+        for index, expense in enumerate(data):
+            if expense["date"] == str(date) and expense["description"] == str(description) and expense["amount"] == str(amount):
+                data[index]["deleted"] = False
+                break
+
+        with open(file_path, 'w') as file:
+            json.dump(data, file, indent=4)
+
     def remove_from_json(self, date, description, amount):
         file_path = "expenses.json"
         if os.path.exists(file_path):
@@ -283,20 +373,32 @@ class App(tk.Tk):
         
         for index, expense in enumerate(data):
             if expense["date"] == str(date) and expense["description"] == str(description) and expense["amount"] == str(amount):
-                data.pop(index)
+                data[index]["deleted"] = True
                 break
 
         with open(file_path, 'w') as file:
             json.dump(data, file, indent=4)
 
     def parse_date(self, tokens):
-        last_token = tokens[0]
         parsed_value = None
         parsed_date = None
 
+        new_tokens = []
         for token in tokens:
+            if token == "last" or token == "next" or token == "this":
+                token = token + " " + tokens[tokens.index(token) + 1]
+            
+            new_tokens.append(token)
+
+        for token in new_tokens:
             parsed_value = token
+
+            if token == "last night":
+                token = "yesterday"
+
             date = dateparser.parse(token)
+
+            print(token, date)
             
             if token.isdigit() and len(token) < 4:
                 continue
@@ -304,21 +406,13 @@ class App(tk.Tk):
             if token.isdigit() and (int(token) < 1900 or int(token) > 2100):
                 continue
 
-            if token.isdigit() and (int(token) >= 1900 and int(token) <= 2100):
-                if last_token == "spent" or last_token == "paid" or last_token == "sent" or last_token == "":
-                    continue
-
-            last_token = token
-
-            if str(token).casefold() == "last".casefold() or str(token).casefold() == "next".casefold() or str(token).casefold() == "this".casefold():
-                last_token = token
-                continue
-
-            if str(last_token).casefold() == "last".casefold() or str(last_token).casefold() == "next".casefold() or str(last_token).casefold() == "this".casefold():
-                parsed_value = last_token + " " + token
-                date = dateparser.parse(last_token + " " + token)
+            #if token.contains("paid") or token.contains("spent") or token.contains("sent"):
+            #    continue
 
             if date:
+                if token == "I" or token == "spent" or token == "paid" or token == "sent" or token == "bar":
+                    continue
+
                 parsed_date = date.strftime('%Y-%m-%d')
                 break
 
@@ -327,8 +421,10 @@ class App(tk.Tk):
         print(parsed_date, parsed_value)
 
         if parsed_date:
+            print(parsed_date, parsed_value)
             return parsed_date, parsed_value
 
+        print(None, None)
         return None, None
 
     def interpret_message(self, message):
@@ -376,14 +472,26 @@ class App(tk.Tk):
             description = description.replace(parsed_date_value, "").strip()
 
         no_no_pharses = [
+            "I spent",
+            "I paid",
+            "I sent",
+            "I paid for",
+            "I spent for",
+            "I sent for",
+            "I paid $",
+            "I spent $",
+            "I sent $",
+            "I paid for $",
+            "I spent on",
+            "I sent on",
+            "I paid on",
             "$",
             "for $",
             "dollars",
             "dollar",
             "paid",
-            "I",
             "spent",
-            "sent"
+            "sent",
         ]
 
         for phrase in no_no_pharses:
@@ -392,7 +500,8 @@ class App(tk.Tk):
         no_no_pharses_at_end_or_start = [
             "on",
             "for",
-            "to"
+            "to",
+            "I",
         ]
 
         for phrase in no_no_pharses_at_end_or_start:
@@ -411,8 +520,29 @@ class App(tk.Tk):
 
         with open(file_path, 'r') as file:
             data = json.load(file)
+
+        new_data = []
+        for entry in data:
+            if entry["deleted"] == False:
+                new_data.append(entry)
         
-        return data
+        return new_data
+    
+    def load_deleted_json_data(self):
+        file_path = "expenses.json"
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as file:
+                json.dump([], file)
+
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+
+        new_data = []
+        for entry in data:
+            if entry["deleted"] == True:
+                new_data.append(entry)
+
+        return new_data
 
     def save_to_json(self, date, description, amount):
         file_path = "expenses.json"
@@ -425,7 +555,7 @@ class App(tk.Tk):
             with open(file_path, 'w') as file:
                 json.dump([], file)
 
-        data.append({"date": date, "description": description, "amount": amount})
+        data.append({"date": date, "description": description, "amount": amount, "deleted": False})
 
         with open(file_path, 'w') as file:
             json.dump(data, file, indent=4)
