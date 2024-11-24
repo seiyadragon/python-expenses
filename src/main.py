@@ -39,7 +39,7 @@ class App(tk.Tk):
         self.loading_thread.start()
 
         self.title("Python Expenses Tracker")
-        self.geometry("800x600")
+        self.geometry("1600x900")
 
         self.loading_label = ttk.Label(self, text="Loading NLTK data: ")
         self.loading_value = 0.0
